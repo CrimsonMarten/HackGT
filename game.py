@@ -1,12 +1,22 @@
 from datetime import datetime
-from flask import Flask, render_template, url_for, flash, redirect
+from random import randint
+from flask import Flask, request, render_template, url_for, flash, redirect
+from flask_restful import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 from forms import CreateGameForm, JoinGameForm
+import json
 
 app = Flask(__name__)
+Api = Api(app)
+CORS(app)
 app.config['SECRET_KEY'] = '5791628bb0b13ce0c676dfde280ba245'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
 db = SQLAlchemy(app)
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 
 class Player(db.Model):
@@ -17,47 +27,33 @@ class Player(db.Model):
     def __repr__(self):
         return f"Player('{self.username}')"
 
+class Location(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
+
+    def __repr__(self):
+        return f"Location('Latitude: {self.latitude}, 'Longitude: {self.longitude}')"
 
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    password = db.Column()
+    password = db.Column(db.Integer, nullable=False)
     players = db.relationship('Player', backref='player', lazy=True)
+    markers = db.relationship('Location', backref='marker', lazy=True)
 
-    def __repr__(self):
-        return f"Post('{self.title}', '{self.date_posted}')"
+@app.route('/')
+def hello():
+    return 'Hello World!'
 
-@app.route("/")
-@app.route("/home")
-def home():
-    return render_template('home.html')
-
-
-@app.route("/about")
-def about():
-    return render_template('about.html', title='About')
-
-
-@app.route("/create_game", methods=['GET', 'POST'])
-def register():
-    form = CreateGameForm()
-    if form.validate_on_submit():
-        flash(f'Game created! Join at { password }.', 'success')
-        return redirect(url_for('home'))
-    return render_template('register.html', title='Register', form=form)
-
-'''
-@app.route("/join_game", methods=['GET', 'POST'])
-def login():
-    form = JoinGameForm()
-    if form.validate_on_submit():
-        if Game.query.filter_by(form.password.data):
-            flash('You have been logged in!', 'success')
-            return redirect(url_for('home'))
-        else:
-            flash('Login Unsuccessful. Please check username and password', 'danger')
-    return render_template('login.html', title='Login', form=form)
-'''
-
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/create_game', methods=['POST'])
+def create_game():
+    data = request.json
+    game = Game(password=randint(100000, 999999))
+    db.session.add(game)
+    db.session.commit()
+    markers = [Location(latitude=float(marker['lat']), longitude=float(marker['long']), game_id=game.id) for marker in data['tasks']]
+    for marker in markers:
+        db.session.add(marker)
+        db.session.commit()
+    return 
