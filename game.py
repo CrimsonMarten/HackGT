@@ -1,10 +1,8 @@
-from datetime import datetime
 from random import randint
 from flask import Flask, request, render_template, url_for, flash, redirect
 from flask_restful import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from forms import CreateGameForm, JoinGameForm
 import json
 
 app = Flask(__name__)
@@ -21,7 +19,6 @@ if __name__ == '__main__':
 
 class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(20), unique=True, nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
 
     def __repr__(self):
@@ -42,10 +39,6 @@ class Game(db.Model):
     players = db.relationship('Player', backref='player', lazy=True)
     markers = db.relationship('Location', backref='marker', lazy=True)
 
-@app.route('/')
-def hello():
-    return 'Hello World!'
-
 @app.route('/create_game', methods=['POST'])
 def create_game():
     data = request.json
@@ -56,4 +49,17 @@ def create_game():
     for marker in markers:
         db.session.add(marker)
         db.session.commit()
-    return 
+    return str(game.password)
+
+
+@app.route('/join_game', methods=['POST'])
+def join_game():
+    data = request.json
+    password = data['password']
+    if Game.query.filter(password=password):
+        game = Game.query.filter(password=password).first()
+        player = Player(game_id=game.id)
+        db.session.add(player)
+        db.session.commit()
+        return 'join_game.html'
+    return 'You entered the wrong passcode. Try again!'
