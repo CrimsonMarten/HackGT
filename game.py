@@ -19,13 +19,11 @@ if __name__ == '__main__':
 
 class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(20), unique=True, nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
-
-class PlayerLocation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    is_alive = db.Column(db.Boolean, nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
-    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
 
 class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,10 +59,12 @@ def create_game():
 @app.route('/join_game', methods=['POST'])
 def join_game():
     data = request.data
-    password = int(data)
+    data = json.loads(data)
+    print(data)
+    username, password, lat, lng = data['username'], int(data['password']), float(data['lat']), float(data['long'])
     if Game.query.filter_by(password=password):
         game = Game.query.filter_by(password=password).first()
-        player = Player(game_id=game.id)
+        player = Player(game_id=game.id, is_alive=True, latitude=lat, longitude=lng, username=username)
         db.session.add(player)
         db.session.commit()
         json_data = json.loads(game.marker_string)
@@ -94,3 +94,48 @@ def update_tasks():
     game.tasks = game.tasks - 1
     db.session.commit()
     return str(game.tasks)
+
+
+@app.route('/update_player_location', methods=['POST'])
+def update_player_location() :
+    data = request.data
+    data = json.loads(data)
+    print("DATA")
+    print(data)
+    player_id = int(data['playerID'])
+    new_lat = float(data['lat'])
+    new_long = float(data['long'])
+    player = Player.query.filter_by(id=player_id).first()
+
+    player.latitude = new_lat
+    player.longitude = new_long
+
+    db.session.commit()
+
+    return str(player.is_alive)
+
+
+@app.route('/get_players_in_game', methods=['POST'])
+def get_players_in_game() :
+    data = request.data
+    print("DATA")
+    print(data)
+    game_id = int(data)
+    players = []
+    game = Game.query.filter_by(password=game_id).first()
+    for player in list(Player.query.filter_by(game_id=game.id)):
+        players.append({'uid': player.id, 'lat': player.latitude, 'long': player.longitude, 'alive': player.is_alive, 'username': player.username})
+
+    return jsonify({ 'players': players })
+
+@app.route('/kill', methods=['POST'])
+def kill():
+    data = request.data
+    data = json.loads(data)
+    killer_id = int(data['killerID'])
+    victim_id = int(data['victimID'])
+    victim = Player.query.filter_by(id=victim_id).first()
+    victim.is_alive = False
+    db.session.commit()
+    return ''
+
