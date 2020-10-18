@@ -62,10 +62,19 @@ def join_game():
         db.session.commit()
         json_data = json.loads(game.marker_string)
         players = len(list(Player.query.filter_by(game_id=game.id)))
+        game.tasks = players * len(json_data['tasks'])
         json_data['id'] = player.id
+        json_data['num_tasks'] = game.tasks
         return json.dumps(json_data)
 
     return 'You entered the wrong passcode. Try again!'
+
+@app.route('/current_tasks', methods=['POST'])
+def current_tasks():
+    data = request.data
+    password = int(data)
+    game = Game.query.filter_by(password=password)
+    return game.tasks
 
 @app.route('/update_tasks', methods=['POST'])
 def update_tasks():
