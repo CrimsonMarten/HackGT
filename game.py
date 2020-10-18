@@ -65,7 +65,9 @@ def join_game():
     username, password, lat, lng = data['username'], int(data['password']), float(data['lat']), float(data['long'])
     if Game.query.filter_by(password=password):
         game = Game.query.filter_by(password=password).first()
-        if Player.query.filter_by(game_id=game.id).first():
+        players_in_game = Player.query.filter_by(game_id=game.id)
+        print(players_in_game)
+        if players_in_game.first():
             impostor = False
         else:
             impostor = True
@@ -73,6 +75,7 @@ def join_game():
         db.session.add(player)
         db.session.commit()
         json_data = json.loads(game.marker_string)
+        print(game.marker_string)
         players = len(list(Player.query.filter_by(game_id=game.id)))
         game.total_tasks = (players - 1) * len(json_data['tasks'])
         json_data['id'] = player.id
@@ -145,3 +148,6 @@ def kill():
     db.session.commit()
     return ''
 
+if __name__=='__main__':
+    db.drop_all()
+    db.create_all()
