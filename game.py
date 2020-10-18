@@ -21,9 +21,6 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
 
-    def __repr__(self):
-        return f"Player('{self.username}')"
-
 class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     latitude = db.Column(db.Float, nullable=False)
@@ -38,11 +35,13 @@ class Game(db.Model):
     password = db.Column(db.Integer, nullable=False)
     players = db.relationship('Player', backref='player', lazy=True)
     markers = db.relationship('Location', backref='marker', lazy=True)
+    marker_string = db.Column(db.String())
+    tasks = db.Column(db.Integer)
 
 @app.route('/create_game', methods=['POST'])
 def create_game():
     data = request.json
-    game = Game(password=randint(100000, 999999))
+    game = Game(password=randint(100000, 999999), marker_string=request.data)
     db.session.add(game)
     db.session.commit()
     markers = [Location(latitude=float(marker['lat']), longitude=float(marker['long']), game_id=game.id) for marker in data['tasks']]
@@ -54,12 +53,24 @@ def create_game():
 
 @app.route('/join_game', methods=['POST'])
 def join_game():
-    data = request.json
-    password = data['password']
-    if Game.query.filter(password=password):
+    data = request.data
+    password = int(data)
+    if Game.query.filter_by(password=password):
         game = Game.query.filter_by(password=password).first()
         player = Player(game_id=game.id)
         db.session.add(player)
         db.session.commit()
-        return 'join_game.html'
+        json_data = json.loads(game.marker_string)
+        players = len(list(Player.query.filter_by(game_id=game.id)))
+        json_data['id'] = player.id
+        return json.dumps(json_data)
+
     return 'You entered the wrong passcode. Try again!'
+
+@app.route('/update_tasks', methods=['POST'])
+def update_tasks():
+    data = request.data
+    password = int(data)
+    game = Game.query.filter_by(password=password)
+    game.tasks = game.tasks - 1
+    return game.tasks
