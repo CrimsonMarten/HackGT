@@ -15,6 +15,8 @@ db = SQLAlchemy(app)
 
 if __name__ == '__main__':
     app.run(debug=True)
+    db.drop_all()
+    db.create_all()
 
 
 class Player(db.Model):
@@ -147,7 +149,3 @@ def kill():
     victim.is_alive = False
     db.session.commit()
     return ''
-
-if __name__=='__main__':
-    db.drop_all()
-    db.create_all()
