@@ -19,11 +19,12 @@ if __name__ == '__main__':
 
 class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(20), unique=True, nullable=False)
+    username = db.Column(db.String(20), nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
     is_alive = db.Column(db.Boolean, nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
+    impostor = db.Column(db.Boolean, nullable=False)
 
 class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -64,14 +65,19 @@ def join_game():
     username, password, lat, lng = data['username'], int(data['password']), float(data['lat']), float(data['long'])
     if Game.query.filter_by(password=password):
         game = Game.query.filter_by(password=password).first()
-        player = Player(game_id=game.id, is_alive=True, latitude=lat, longitude=lng, username=username)
+        if Player.query.filter_by(game_id=game.id).first():
+            impostor = False
+        else:
+            impostor = True
+        player = Player(game_id=game.id, is_alive=True, latitude=lat, longitude=lng, username=username, impostor=impostor)
         db.session.add(player)
         db.session.commit()
         json_data = json.loads(game.marker_string)
         players = len(list(Player.query.filter_by(game_id=game.id)))
-        game.total_tasks = players * len(json_data['tasks'])
+        game.total_tasks = (players - 1) * len(json_data['tasks'])
         json_data['id'] = player.id
         json_data['num_tasks'] = game.total_tasks
+        json_data['is_impostor'] = impostor
         game.tasks = game.total_tasks
         db.session.commit()
         return json.dumps(json_data)
