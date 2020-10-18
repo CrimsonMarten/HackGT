@@ -57,7 +57,7 @@ def join_game():
     data = request.json
     password = data['password']
     if Game.query.filter(password=password):
-        game = Game.query.filter(password=password).first()
+        game = Game.query.filter_by(password=password).first()
         player = Player(game_id=game.id)
         db.session.add(player)
         db.session.commit()
