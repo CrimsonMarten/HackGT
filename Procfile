@@ -1,1 +1,1 @@
-python3 game.py
+web: gunicorn game:app
