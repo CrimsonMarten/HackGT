@@ -1,5 +1,5 @@
 from random import randint
-from flask import Flask, request, render_template, url_for, flash, redirect
+from flask import Flask, request, render_template, url_for, flash, redirect, jsonify
 from flask_restful import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -21,6 +21,12 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
 
+class PlayerLocation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
+
 class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     latitude = db.Column(db.Float, nullable=False)
@@ -37,6 +43,7 @@ class Game(db.Model):
     markers = db.relationship('Location', backref='marker', lazy=True)
     marker_string = db.Column(db.String())
     tasks = db.Column(db.Integer)
+    total_tasks = db.Column(db.Integer)
 
 @app.route('/create_game', methods=['POST'])
 def create_game():
@@ -62,9 +69,11 @@ def join_game():
         db.session.commit()
         json_data = json.loads(game.marker_string)
         players = len(list(Player.query.filter_by(game_id=game.id)))
-        game.tasks = players * len(json_data['tasks'])
+        game.total_tasks = players * len(json_data['tasks'])
         json_data['id'] = player.id
-        json_data['num_tasks'] = game.tasks
+        json_data['num_tasks'] = game.total_tasks
+        game.tasks = game.total_tasks
+        db.session.commit()
         return json.dumps(json_data)
 
     return 'You entered the wrong passcode. Try again!'
@@ -73,13 +82,15 @@ def join_game():
 def current_tasks():
     data = request.data
     password = int(data)
-    game = Game.query.filter_by(password=password)
-    return game.tasks
+    print(password)
+    game = Game.query.filter_by(password=password).first()
+    return jsonify({ 'total': game.total_tasks, 'incomplete': game.tasks})
 
 @app.route('/update_tasks', methods=['POST'])
 def update_tasks():
     data = request.data
     password = int(data)
-    game = Game.query.filter_by(password=password)
+    game = Game.query.filter_by(password=password).first()
     game.tasks = game.tasks - 1
-    return game.tasks
+    db.session.commit()
+    return str(game.tasks)
